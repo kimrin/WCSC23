@@ -30,7 +30,7 @@ PG  := -pg
 #CFLAGS := -g -Wall -O1 -fPIC -fno-inline
 CFLAGS := -g -Wall -O3 -fPIC
 #CFLAGS := -g -Wall -O3
-CONCATLIB := -lm -ldb-4.8 -lpthread
+CONCATLIB := -lm # -ldb-4.8 -lpthread
 
 all: executable # sharedlib
 

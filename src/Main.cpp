@@ -11,6 +11,7 @@ extern "C" int setunbuffering(void)
   return 0;
 }
 
+/*
 extern "C" struct _IO_FILE *get_stdout(void)
 {
   return stdout;
@@ -20,6 +21,7 @@ extern "C" struct _IO_FILE *get_stdin(void)
 {
   return stdin;
 }
+*/
 
 int main(int ac, char *av[])
 {

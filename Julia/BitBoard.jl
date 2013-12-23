@@ -36,7 +36,7 @@ const movableNoSliding = [(1,0) (0,0) (0,0) (0,0) (0,0) (0,0) (0,0) (0,0);
             #original RY #(1,-1) (1,1) (-1,-1) (-1,1) (0,0) (0,0) (0,0) (0,0);
                           (0,0) (0,0) (0,0) (0,0) (0,0) (0,0) (0,0) (0,0); # new UM
                           (0,0) (0,0) (0,0) (0,0) (0,0) (0,0) (0,0) (0,0); # new RY
-                          ]::Array{(Any...,),2} #::Array{(Int64,Int64),2}
+                          ]::Array{(Int64,Int64),2}
 
 const isSlidePiece = [ 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0,  0, 1, 1]::Array{Int,1}
                     # FU,KY,KE,GI,KI,KA,HI,OU,TO,NY,NK,NG,NKI,UM,RY
@@ -78,8 +78,8 @@ function InitTables(gs::GameStatus)
     #    end
     #end
 
-    gs.FillRank::Array{BitBoard,1} = [uint128(0) for r=1:9]
-    gs.FillFile::Array{BitBoard,1} = [uint128(0) for f=1:9]
+    gs.FillRank = [uint128(0) for r=1:9]::Array{BitBoard,1}
+    gs.FillFile = [uint128(0) for f=1:9]::Array{BitBoard,1}
 
     for i = A9:I1
         r = RANKS[i]
@@ -107,8 +107,8 @@ function InitTables(gs::GameStatus)
 
     #zeros = uint128(0)
 
-    gs.MovableKoma::Array{BitBoard,2} = [gs.fukyBitsW gs.fukyBitsW gs.keBitsW;
-                                         gs.fukyBitsB gs.fukyBitsB gs.keBitsB]
+    gs.MovableKoma = [gs.fukyBitsW gs.fukyBitsW gs.keBitsW;
+                      gs.fukyBitsB gs.fukyBitsB gs.keBitsB]::Array{BitBoard,2}
     #for sengo = 1:2
     #    for koma = MJFU:MJKE
     #        println("movable[",sengo,koma,"] = ")

@@ -920,7 +920,7 @@ function move2USIString(m::Move)
     to::String = ""
 
     if (m.move & 0x00000400) == 0x00000400 # UCHI
-        capt = num2usiDict[m.move & 0x1f]
+        capt = num2usiDict[int(m.move & 0x1f)]
         to   = USISQNAME[seeMoveTo(m)+1]
         ret = string(capt,"*",to)
     else # 普通の手

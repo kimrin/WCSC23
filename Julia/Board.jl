@@ -91,19 +91,19 @@ end
 
 function SquareInit(sq::Array{Int,1}, mochi_sente::Array{Int,1}, mochi_gote::Array{Int,1}, sengo::Int, bo::Board)
     bo.bb = [uint128(0) for x=1:MJGONUM]::Array{BitBoard,1}
-    bo.WhitePieces::BitBoard = uint128(0)
-    bo.BlackPieces::BitBoard = uint128(0)
-    bo.OccupiedSquares::BitBoard = uint128(0)
+    bo.WhitePieces = uint128(0)::BitBoard
+    bo.BlackPieces = uint128(0)::BitBoard
+    bo.OccupiedSquares = uint128(0)::BitBoard
 
-    bo.WhitePiecesInHands::Array{Int,1} = mochi_sente
-    bo.BlackPiecesInHands::Array{Int,1} = mochi_gote
+    bo.WhitePiecesInHands = mochi_sente::Array{Int,1}
+    bo.BlackPiecesInHands = mochi_gote::Array{Int,1}
 
-    bo.Material::Int = 0
+    bo.Material = 0::Int
 
-    bo.nextMove::Int = sengo
+    bo.nextMove = sengo::Int
 
-    bo.square::Array{Int,1} = [0 for x=1:NumSQ]::Array{Int,1}
-    bo.viewRotated::Bool = false
+    bo.square = [0 for x=1:NumSQ]::Array{Int,1}
+    bo.viewRotated = false
 
     for idx = 1:NumSQ
         piece = sq[idx]

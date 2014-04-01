@@ -46,7 +46,7 @@ function Qui( gs::GameStatus, ply::Int, alpha::Int, beta::Int)
     movesfound = 0
     gs.pvmovesfound = 0
     gs.MoveBeginIndex = gs.moveBufLen[ply+1]
-    gs.moveBufLen[ply+1+1] = generateBB(gs.board, gs.moveBuf, teban, gs.moveBufLen[ply+1], gs)
+    gs.moveBufLen[ply+1+1] = generateQBB(gs.board, gs.moveBuf, teban, gs.moveBufLen[ply+1], gs)
 
     for i = gs.moveBufLen[ply+1]+1:gs.moveBufLen[ply+2] # 1 origin
         makeMove( gs.board, i, gs.moveBuf, teban)
@@ -54,10 +54,10 @@ function Qui( gs::GameStatus, ply::Int, alpha::Int, beta::Int)
             #println("check!")
             takeBack( gs.board, i, gs.moveBuf, teban)
         else
-            if (seeMoveFlag(gs.moveBuf[i]) & (FLAG_NARI|FLAG_TORI)) == 0
-                takeBack( gs.board, i, gs.moveBuf, teban)
-                continue
-            end
+            #if (seeMoveFlag(gs.moveBuf[i]) & (FLAG_NARI|FLAG_TORI)) == 0
+            #    takeBack( gs.board, i, gs.moveBuf, teban)
+            #    continue
+            #end
             gs.inodes += 1
 	    movesfound += 1
             val::Int = -Qui( gs, ply+1, -beta, -alpha)

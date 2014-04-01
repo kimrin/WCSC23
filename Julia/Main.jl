@@ -78,7 +78,7 @@ function main()
         if st == "quit" || st == "exit"
             break
         elseif st == "usi"
-            println("id name Mecha Jyoshi Shogi OLD",MECHAJYO_VERSION)
+            println("id name Mecha Jyoshi Shogi NEW ",MECHAJYO_VERSION)
             println("id author Sayuri TAKEBE, Mio WATANABE, Rieko TSUJI and Takeshi KIMURA")
             println("option name BookFile type string default $(gs.bookfile)")
             println("option name UseBook type check default $(gs.usebook)")

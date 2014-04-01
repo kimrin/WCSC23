@@ -60,6 +60,7 @@ function qsearch( gs::GameStatus, ply::Int, alpha::Int, beta::Int)
     val::Int = 0
     val2::Int = 0
     teban::Int = ((ply & 0x1) == 0)?gs.side:(gs.side$1)
+    ev = (teban == SENTE)? 1: -1
 
     if gs.timedout
         return 0
@@ -68,7 +69,7 @@ function qsearch( gs::GameStatus, ply::Int, alpha::Int, beta::Int)
     if in_check( teban, gs.board)
         return PVS( gs, ply, 1.0, alpha, beta,true)
     end
-    val = EvalBonanza( gs.board.nextMove, gs.board, gs)
+    val = ev * EvalBonanza( SENTE, gs.board, gs)
 
     if val >= beta
         return val
@@ -267,8 +268,8 @@ function PVS( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::Int, i
             return val
         end
     end
-
-    tmpeval = EvalBonanza(  gs.board.nextMove, gs.board, gs)
+    ev = (teban == SENTE)? 1: -1
+    tmpeval = ev * EvalBonanza( SENTE, gs.board, gs)
 
     if (!gs.followpv) && gs.allownull && depth < 3.0 && ((tmpeval - 100.0 * depth) >= beta)
         return tmpeval - 100.0*depth
@@ -312,21 +313,6 @@ function PVS( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::Int, i
             if gs.timedout
                 return 0
             end
-            if val >= beta
-                if gs.board.nextMove == GOTE
-                    gs.blackHeuristics[seeMoveFrom(gs.moveBuf[i])+1,seeMoveTo(gs.moveBuf[i])+1] += int(depth*depth)
-                else
-                    gs.whiteHeuristics[seeMoveFrom(gs.moveBuf[i])+1,seeMoveTo(gs.moveBuf[i])+1] += int(depth*depth)
-                end
-                    
-                tt_flag = TT_BETA
-                tt_val = beta
-                tt_bestMove = gs.moveBuf[i]
-                tt_save( depth, tt_val, tt_flag, gs.moveBuf[i], gs)
-
-                return val
-            end
-
             if val > alpha
                 alpha = val
                 # both sides want to maximize from *their* perspective
@@ -344,6 +330,21 @@ function PVS( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::Int, i
                 tt_val = alpha
                 tt_bestMove = gs.moveBuf[i]
                 tt_save( depth, tt_val, tt_flag, tt_bestMove, gs)
+            if val >= beta
+                if gs.board.nextMove == GOTE
+                    gs.blackHeuristics[seeMoveFrom(gs.moveBuf[i])+1,seeMoveTo(gs.moveBuf[i])+1] += int(depth*depth)
+                else
+                    gs.whiteHeuristics[seeMoveFrom(gs.moveBuf[i])+1,seeMoveTo(gs.moveBuf[i])+1] += int(depth*depth)
+                end
+                    
+                tt_flag = TT_BETA
+                tt_val = beta
+                tt_bestMove = gs.moveBuf[i]
+                tt_save( depth, tt_val, tt_flag, gs.moveBuf[i], gs)
+
+                return val
+            end
+
             end
         end
     end

@@ -1830,8 +1830,10 @@ function makeMove(q::Board,
     end
 
     if q.square[to+1] == MJOU
+        #println("move OU:kingposW=",to+1)
         q.kingposW = to+1
     elseif q.square[to+1] == MJGOOU
+        #println("move OU:kingposB=",to+1)
         q.kingposB = to+1
     end
 
@@ -1945,11 +1947,13 @@ function takeBack(q::Board,
         q.square[to+1] = MJNONE
     end
 
-    if uchi != FLAG_UCHI
+    if uchi == 0
         if q.square[from+1] == MJOU
             q.kingposW = from+1
+            #println("undo OU: kingposW = $(from+1)")
         elseif q.square[from+1] == MJGOOU
             q.kingposB = from+1
+            #println("undo OU: kingposB = $(from+1)")
         end
     end
 

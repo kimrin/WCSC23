@@ -1,5 +1,10 @@
 #PcPcOnSq(k::Int,i::Int,j::Int) = pc_on_sq[k,int((i+1)*(i)/2)+(j)] # bug
-PcPcOnSq(k::Int,i::Int,j::Int) = pc_on_sq[int((i-1)*(i)/2)+(j-1)+1,k]
+###PcPcOnSq(k::Int,i::Int,j::Int) = pc_on_sq[int((i-1)*(i)/2)+(j-1)+1,k] # also have bugs
+PcPcOnSq(k::Int,i::Int,j::Int) = pc_on_sq[(i-1)*(i)/2+(j-1)+1,k]
+
+function showPcPcOnSqIndex(k::Int, i::Int, j::Int)
+    println("["*"$k,$i,$j"*"] = "*"pc_on_sq[",(i-1)*(i)/2+(j-1)+1,",",k,"]")
+end
 
 function make_list( list0::Array{Int,1}, list1::Array{Int,1}, p::Board, gs::GameStatus)
     list2::Array{Int,1} = [0 for x=1:35]::Array{Int,1}
@@ -394,21 +399,26 @@ function EvalBonanza(nextMove::Int, p::Board, gs::GameStatus)
     #end
     sq_bk::Int = p.kingposW
     sq_wk::Int = 82 - p.kingposB
-    
+    #println("sq_bk=$(sq_bk), sq_wk = $(sq_wk)")
+    #println("p.kingposW = $(p.kingposW), p.kingposB = $(p.kingposB)")
     sum::Int = 0
 
-    for i = 1:nlist
-        k0::Int = list0[i]
-        k1::Int = list1[i]
+    for i = 0:(nlist-1)
+        k0::Int = list0[i+1]
+        k1::Int = list1[i+1]
         
-        for j = 1:(i+1)
-            l0::Int = list0[j]
-            l1::Int = list1[j]
+        for j = 0:(i)
+            #println("(i,j)=($i,$j)")
+            l0::Int = list0[j+1]
+            l1::Int = list1[j+1]
             #try
             sum += PcPcOnSq( sq_bk, k0, l0)
-            #    println("sq_bk=",sq_bk,",k0=",k0,",l0=",l0)
+            #showPcPcOnSqIndex(sq_bk, k0, l0)
+            # println("sq_bk=",sq_bk,",k0=",k0,",l0=",l0)
+
             sum -= PcPcOnSq( sq_wk, k1, l1)
-            #    println("sq_wk=",sq_wk,",k1=",k1,",l1=",l1)
+            #showPcPcOnSqIndex(sq_wk, k1, l1)
+            #println("sq_wk=",sq_wk,",k1=",k1,",l1=",l1)
             #catch
             #    quit()
             #    println("sq_bk=",sq_bk,",sq_wk=",sq_wk)
@@ -433,11 +443,12 @@ function EvalBonanza(nextMove::Int, p::Board, gs::GameStatus)
 
     score = int(score / 32)
 
-    #noise = (rand(Uint32) % 6) - 3
-    #score += noise
+    noise = (rand(Uint32) % 10) - 5
+    score += noise
 
-    # DisplayBoard(p)
-    # println("score = $(score)")
+    #println("XXX")
+    #DisplayBoard(p)
+    #println("score = $(score)")
 
     return score
 end

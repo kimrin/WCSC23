@@ -112,8 +112,10 @@ function SquareInit(sq::Array{Int,1}, mochi_sente::Array{Int,1}, mochi_gote::Arr
             continue
         end
         if piece == MJOU
+            #println("kingW=$(idx)")
             bo.kingposW = idx
         elseif piece == MJGOOU
+            #println("kingB=$(idx)")
             bo.kingposB = idx
         end
 

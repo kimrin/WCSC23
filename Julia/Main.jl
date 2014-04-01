@@ -1,4 +1,4 @@
-#!/home/kimura/julia/julia
+#!/usr/local/bin/julia
 # 
 # メカ女子将棋システム (C) 2013 メカ女子将棋部☆
 # 
@@ -78,7 +78,7 @@ function main()
         if st == "quit" || st == "exit"
             break
         elseif st == "usi"
-            println("id name Mecha Jyoshi Shogi ",MECHAJYO_VERSION)
+            println("id name Mecha Jyoshi Shogi OLD",MECHAJYO_VERSION)
             println("id author Sayuri TAKEBE, Mio WATANABE, Rieko TSUJI and Takeshi KIMURA")
             println("option name BookFile type string default $(gs.bookfile)")
             println("option name UseBook type check default $(gs.usebook)")
@@ -92,9 +92,9 @@ function main()
             elseif beginswith(st,"setoption name USI_Ponder value false")
                 gs.canponder = false
             elseif beginswith(st,"setoption name USI_Hash value ")
-                gs.hashsize = uint32(st[length("setoption name USI_Hash value "):])
+                gs.hashsize = uint32(st[length("setoption name USI_Hash value "):end])
             elseif beginswith(st,"setoption name BookFile value ")
-                gs.bookfile = st[length("setoption name BookFile value "):]
+                gs.bookfile = st[length("setoption name BookFile value "):end]
             else
             end
         elseif beginswith(st,"usinewgame")

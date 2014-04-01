@@ -48,7 +48,7 @@ function DisplayBitBoard(bb::BitBoard,isRotate::Bool)
 
     println("")
 
-    println( "firstOne=", leading_zeros(bb),
+    println( "firstOne=", leading_zeros(bb) - leading_zeros(MaskOfBoard),
             ", LastOne=", trailing_zeros(bb),
             ", BitCnt=", count_ones(bb))
 

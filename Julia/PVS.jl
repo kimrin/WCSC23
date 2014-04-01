@@ -66,7 +66,7 @@ function qsearch( gs::GameStatus, ply::Int, alpha::Int, beta::Int)
     end
     gs.triangularLength[ply+1] = ply
     if in_check( teban, gs.board)
-        return PVS( gs, ply, 1.0, alpha, beta)
+        return PVS( gs, ply, 1.0, alpha, beta,true)
     end
     val = EvalBonanza( gs.board.nextMove, gs.board, gs)
 
@@ -81,26 +81,24 @@ function qsearch( gs::GameStatus, ply::Int, alpha::Int, beta::Int)
         period::Int = now - gs.nsStart
         if period > MAXTHINKINGTIME
             gs.timedout = true
-            return 0
+            return val
         end
     end
-    if float(ply) > (gs.depth + 5.0) # changed!
+    if float(ply) > (gs.depth + 4.0) # changed!
         return alpha
     end
 
     gs.MoveBeginIndex = gs.moveBufLen[ply+1]
     gs.moveBufLen[ply+1+1] = generateQBB(gs.board, gs.moveBuf, teban, gs.moveBufLen[ply+1], gs)
-
-    # if gs.moveBufLen[ply+2] == 0 # added by T.K. 20130430 23:15
-    #     return val
-    # end
-
     for i = gs.moveBufLen[ply+1]+1:gs.moveBufLen[ply+2]
         makeMove( gs.board, i, gs.moveBuf, teban)
-        if in_check( teban, gs.board)||((gs.moveBuf[i].move & 0x00000300) == 0)
+        oote = in_check( teban, gs.board)
+        if oote||(!oote && seeMoveFlag(gs.moveBuf[i]) == 0)
             #println("check!")
             takeBack( gs.board, i, gs.moveBuf, teban)
         else
+
+
 	    gs.inodes += 1
 	    val = -qsearch( gs, ply+1, -beta, -alpha)
             takeBack( gs.board, i, gs.moveBuf, teban)
@@ -196,7 +194,7 @@ function selectmove( gs::GameStatus, ply::Int, i::Int, depth::Float64)
 end
 
 #@iprofile begin
-function PVS( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::Int)
+function PVS( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::Int, isID::Bool)
     movesfound::Int = 0
     gs.pvmovesfound = 0
     teban::Int = ((ply & 0x1) == 0)?gs.side:gs.side$1
@@ -240,7 +238,7 @@ function PVS( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::Int)
                 gs.allownull = false
                 gs.inodes += 1
                 gs.board.nextMove $= 1
-                val = -PVS( gs, ply, depth - NULLMOVE_REDUCTION, -beta, -beta+1)
+                val = -PVS( gs, ply, depth - NULLMOVE_REDUCTION, -beta, -beta+1,isID)
                 gs.board.nextMove $= 1
                 if gs.timedout
                     return 0
@@ -254,6 +252,28 @@ function PVS( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::Int)
         end
     end
 
+    # IID
+    if (!gs.followpv) && gs.allownull
+        gs.allownull = false
+        gs.inodes += 1
+        gs.board.nextMove $= 1
+        val = -PVS( gs, ply, depth - NULLMOVE_REDUCTION, -beta, -alpha,isID)
+        gs.board.nextMove $= 1
+        if gs.timedout
+            return 0
+        end
+        gs.allownull = true
+        if val >= beta
+            return val
+        end
+    end
+
+    tmpeval = EvalBonanza(  gs.board.nextMove, gs.board, gs)
+
+    if (!gs.followpv) && gs.allownull && depth < 3.0 && ((tmpeval - 100.0 * depth) >= beta)
+        return tmpeval - 100.0*depth
+    end
+
     gs.allownull = true
     # 0.5手延長うまくいかない。qsearchがPVSをも一回呼ぶため。
     movesfound = 0
@@ -263,11 +283,11 @@ function PVS( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::Int)
 
     beg = gs.moveBufLen[ply+1]+1
     for i = beg:gs.moveBufLen[ply+2]
-        if (i == beg)&&(best.move != 0)
-            selectHash( gs, ply, i, depth, best)
-        else
-            selectmove( gs, ply, i, depth)
-        end
+        #if (i == beg)&&(best.move != 0)
+        # selectHash( gs, ply, i, depth, best)
+        #else
+        # selectmove( gs, ply, i, depth)
+        #end
         makeMove( gs.board, i, gs.moveBuf, teban)
         ext::Float64 = 0.0
         #if i == beg
@@ -281,12 +301,12 @@ function PVS( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::Int)
 	    movesfound += 1
 
 	    if gs.pvmovesfound > 0
-                val = -PVS( gs, ply+1, depth-1.0+ext, -alpha-1, -alpha)
+                val = -PVS( gs, ply+1, depth-1.0+ext, -alpha-1, -alpha,isID)
                 if (val > alpha) && (val < beta)
-                    val = -PVS( gs, ply+1, depth-1.0+ext, -beta, -alpha)
+                    val = -PVS( gs, ply+1, depth-1.0+ext, -beta, -alpha,isID)
                 end
             else
-                val = -PVS( gs, ply+1, depth-1.0+ext, -beta, -alpha)
+                val = -PVS( gs, ply+1, depth-1.0+ext, -beta, -alpha,isID)
             end
             takeBack( gs.board, i, gs.moveBuf, teban)
             if gs.timedout

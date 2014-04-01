@@ -18,7 +18,7 @@ const ALPHALINE = { "A", "B", "C", "D", "E", "F", "G", "H", "I", "J" }
 #end
 #close(fi)
 
-const MaskOfBoard = parseint(Uint128,"000000000001ffffffffffffffffffff",16)::Uint128
+const MaskOfBoard = parseint(Uint128,"1ffffffffffffffffffff",16)::Uint128
 
 const A9 = 1
 const B9 = 2

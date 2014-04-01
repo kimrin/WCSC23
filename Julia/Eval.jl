@@ -36,9 +36,9 @@ function Eval( nextMove::Int, p::Board, gs::GameStatus)
         score -= p.BlackPiecesInHands[i] * MATERIAL[i] #MATERIAL_CAPTURE[i]
     end
 
-    if (nextMove == GOTE)
-        score = -score
-    end
+    #if (nextMove == SENTE)
+    #    score = -score
+    #end
     return score
 end
 #end # @iprofile

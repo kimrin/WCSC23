@@ -13,39 +13,61 @@ function rememberPV(gs::GameStatus)
     end
 end
 
-# alpha-beta search
-function AlphaBeta( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::Int)
+# qui search
+function Qui( gs::GameStatus, ply::Int, alpha::Int, beta::Int)
+    movesfound::Int = 0
+    gs.pvmovesfound = 0
     gs.triangularLength[ply+1] = ply
-    ev_sign = ((ply & 0x01) == 0)?-1:1
     teban::Int = ((ply & 0x1) == 0)?gs.side:((gs.side==SENTE)?GOTE:SENTE)
+    ev = (teban == SENTE) ? 1: -1
+    bestValue = -Infinity
 
-    if depth <= 0.0
-        return Eval( gs.board.nextMove, gs.board)
+    if (gs.inodes) & 1023 == 0
+        now = time_ns()
+        period::Int = now - gs.nsStart
+        if period > MAXTHINKINGTIME
+            gs.timedout = true
+            return 0
+        end
     end
 
-    if gs.inodes > 100000
-        gs.timedout = true
-        return 0
+    #x = -1 * ev * Eval( SENTE, gs.board, gs)
+    x = ev * EvalBonanza( SENTE, gs.board, gs)
+    if x >= beta
+	return beta
+    end
+    if x > alpha
+	alpha = x
+    end
+    if float(ply) > (gs.depth + 4.0) # changed!
+	return x
     end
 
-    gs.moveBufLen[ply+1+1] = generateMoves(gs.board, gs.moveBuf, teban, gs.moveBufLen[ply+1], gs)
+    movesfound = 0
+    gs.pvmovesfound = 0
+    gs.MoveBeginIndex = gs.moveBufLen[ply+1]
+    gs.moveBufLen[ply+1+1] = generateBB(gs.board, gs.moveBuf, teban, gs.moveBufLen[ply+1], gs)
 
-    for i = gs.moveBufLen[ply+1]+1:gs.moveBufLen[ply+1+1] # 1 origin
+    for i = gs.moveBufLen[ply+1]+1:gs.moveBufLen[ply+2] # 1 origin
         makeMove( gs.board, i, gs.moveBuf, teban)
         if in_check( teban, gs.board)
             #println("check!")
             takeBack( gs.board, i, gs.moveBuf, teban)
         else
+            if (seeMoveFlag(gs.moveBuf[i]) & (FLAG_NARI|FLAG_TORI)) == 0
+                takeBack( gs.board, i, gs.moveBuf, teban)
+                continue
+            end
             gs.inodes += 1
-            val::Int = -AlphaBeta( gs, ply+1, depth-1.0, -beta, -alpha)
+	    movesfound += 1
+            val::Int = -Qui( gs, ply+1, -beta, -alpha)
             takeBack( gs.board, i, gs.moveBuf, teban)
-            #if val >= beta
-            #    return beta
-            #end
-            if val > alpha
-                alpha = val
-		# both sides want to maximize from *their* perspective
-
+            if gs.timedout
+                return 0
+            end
+            if bestValue < val
+                # both sides want to maximize from *their* perspective
+                gs.pvmovesfound += 1
                 gs.triangularArray[ply+1,ply+1] = gs.moveBuf[i]
 		# save this move
                 for j = (ply +1+1):gs.triangularLength[ply+1+1]
@@ -55,7 +77,86 @@ function AlphaBeta( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::
                 gs.triangularLength[ply+1] = gs.triangularLength[ply + 1+1]
                 rememberPV(gs)
             end
+            bestValue=max(val,bestValue)
+            alpha = max( alpha, val)
+            if alpha >= beta
+                return beta
+            end
         end
+    end
+    bestValue
+end
+
+# alpha-beta search
+function AlphaBeta( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::Int)
+    movesfound::Int = 0
+    gs.pvmovesfound = 0
+    gs.triangularLength[ply+1] = ply
+    teban::Int = ((ply & 0x1) == 0)?gs.side:((gs.side==SENTE)?GOTE:SENTE)
+    bestValue = -Infinity
+
+    if depth <= 0.0
+        return Qui( gs, ply, alpha, beta)
+    end
+
+    if (gs.inodes) & 1023 == 0
+        now = time_ns()
+        period::Int = now - gs.nsStart
+        if period > MAXTHINKINGTIME
+            gs.timedout = true
+            return 0
+        end
+    end
+
+    movesfound = 0
+    gs.pvmovesfound = 0
+    gs.MoveBeginIndex = gs.moveBufLen[ply+1]
+    gs.moveBufLen[ply+1+1] = generateBB(gs.board, gs.moveBuf, teban, gs.moveBufLen[ply+1], gs)
+
+    for i = gs.moveBufLen[ply+1]+1:gs.moveBufLen[ply+2] # 1 origin
+        selectmove( gs, ply, i, depth)
+        makeMove( gs.board, i, gs.moveBuf, teban)
+        if in_check( teban, gs.board)
+            #println("check!")
+            takeBack( gs.board, i, gs.moveBuf, teban)
+        else
+            gs.inodes += 1
+	    movesfound += 1
+            val::Int = -AlphaBeta( gs, ply+1, depth-1.0, -beta, -alpha)
+            takeBack( gs.board, i, gs.moveBuf, teban)
+            if gs.timedout
+                return 0
+            end
+            if bestValue < val
+                # both sides want to maximize from *their* perspective
+                gs.pvmovesfound += 1
+                gs.triangularArray[ply+1,ply+1] = gs.moveBuf[i]
+		# save this move
+                for j = (ply +1+1):gs.triangularLength[ply+1+1]
+                    gs.triangularArray[ply+1,j] = gs.triangularArray[ply+1+1,j]
+                    # and append the latest best PV from deeper plies
+                end
+                gs.triangularLength[ply+1] = gs.triangularLength[ply + 1+1]
+                rememberPV(gs)
+            end
+            bestValue=max(val,bestValue)
+            alpha = max( alpha, val)
+            if alpha >= beta
+                return beta
+            end
+        end
+    end
+    if gs.pvmovesfound > 0
+        if gs.board.nextMove == GOTE
+            gs.blackHeuristics[seeMoveFrom(gs.triangularArray[ply+1,ply+1])+1,seeMoveTo(gs.triangularArray[ply+1,ply+1])+1] += int(depth*depth)
+        else
+            gs.whiteHeuristics[seeMoveFrom(gs.triangularArray[ply+1,ply+1])+1,seeMoveTo(gs.triangularArray[ply+1,ply+1])+1] += int(depth*depth)
+        end
+    end
+    if movesfound == 0
+        return -Infinity+ply-1
+	#if in_check(teban, gs.board)
+        #end
     end
     alpha
 end
@@ -114,12 +215,12 @@ function thinkASP( sengo::Int, gs::GameStatus)
     gs.side = sengo
     gs.board.nextMove = sengo
     gs.tt = Dict{Uint64,TransP}()
-    delta::Int = 50
+    delta::Int = 80
     score::Int = 0
     middle::Int = 0
     smallAlpha::Int = 0
     smallBeta::Int  = 0
-    for IDdepth = 1.0:1.0:60.0 #MaxPly
+    for IDdepth = 1.0:1.0:30.0 #MaxPly
         hitScore::Bool = false
 
         while hitScore == false
@@ -133,13 +234,15 @@ function thinkASP( sengo::Int, gs::GameStatus)
 
             # score::Int = AlphaBeta(gs, 0, IDdepth,-Infinity,Infinity) # ply=0
             if IDdepth == 1.0
-                score = PVS(gs, 0, IDdepth,-Infinity,Infinity) # ply=0
+                #score = PVS(gs, 0, IDdepth,-Infinity,Infinity,true) # ply=0
+                score = AlphaBeta(gs, 0, IDdepth,-Infinity,Infinity) # ply=0
                 middle = score
                 hitScore = true
                 smallAlpha = middle - delta
                 smallBeta  = middle + delta
             else
-                score = PVS(gs, 0, IDdepth,smallAlpha,smallBeta) # ply=0
+                #score = PVS(gs, 0, IDdepth,smallAlpha,smallBeta,true) # ply=0
+                score = AlphaBeta(gs, 0, IDdepth,smallAlpha,smallBeta) # ply=0
                 middle = score
 
                 if smallAlpha == -Infinity

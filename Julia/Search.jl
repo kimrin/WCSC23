@@ -94,8 +94,11 @@ function AlphaBeta( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::
     gs.triangularLength[ply+1] = ply
     teban::Int = ((ply & 0x1) == 0)?gs.side:((gs.side==SENTE)?GOTE:SENTE)
     bestValue = -Infinity
-
+    tt_flag::Int = TT_ALPHA
+    tt_val::Int = 0
+    tt_bestMove = Move(0,0,0,0,0,0)
     if depth <= 0.0
+	gs.followpv = false
         return Qui( gs, ply, alpha, beta)
     end
 
@@ -108,13 +111,69 @@ function AlphaBeta( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::
         end
     end
 
+    val, best, fl = tt_probe( depth, alpha, beta, gs)
+    # if fl == TT_EXACT
+    #     #return val
+    # elseif fl == TT_ALPHA
+    #     alpha = max(val,alpha)
+    # elseif fl == TT_BETA
+    #     beta = min(beta,val)
+    # end
+
+    if (!gs.followpv) && gs.allownull
+        if true
+            if in_check( teban, gs.board)
+                gs.allownull = false
+                gs.inodes += 1
+                gs.board.nextMove $= 1
+                val = -AlphaBeta( gs, ply, depth - NULLMOVE_REDUCTION, -beta, -beta+1)
+                gs.board.nextMove $= 1
+                if gs.timedout
+                    return 0
+                end
+                gs.allownull = true
+                if val >= beta
+                    return val
+                end
+            else
+            end
+        end
+    end
+
+    # # IID
+    # if (!gs.followpv) && gs.allownull
+    #     gs.allownull = false
+    #     gs.inodes += 1
+    #     gs.board.nextMove $= 1
+    #     val = -AlphaBeta( gs, ply, depth - NULLMOVE_REDUCTION, -beta, -alpha)
+    #     gs.board.nextMove $= 1
+    #     if gs.timedout
+    #         return 0
+    #     end
+    #     gs.allownull = true
+    #     if val >= beta
+    #         return val
+    #     end
+    # end
+    ev = (teban == SENTE)? 1: -1
+    # tmpeval = ev * EvalBonanza( SENTE, gs.board, gs)
+
+    #if (!gs.followpv) && gs.allownull && depth < 3.0 && ((tmpeval - 100.0 * depth) >= beta)
+    # return int(tmpeval - 100.0*depth)
+    #end
+
     movesfound = 0
     gs.pvmovesfound = 0
     gs.MoveBeginIndex = gs.moveBufLen[ply+1]
     gs.moveBufLen[ply+1+1] = generateBB(gs.board, gs.moveBuf, teban, gs.moveBufLen[ply+1], gs)
 
+    beg = gs.moveBufLen[ply+1]+1
     for i = gs.moveBufLen[ply+1]+1:gs.moveBufLen[ply+2] # 1 origin
-        selectmove( gs, ply, i, depth)
+        if (i == beg)&&(best.move != 0)
+            selectHash( gs, ply, i, depth, best)
+        else
+            selectmove( gs, ply, i, depth)
+        end
         makeMove( gs.board, i, gs.moveBuf, teban)
         if in_check( teban, gs.board)
             #println("check!")
@@ -122,7 +181,19 @@ function AlphaBeta( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::
         else
             gs.inodes += 1
 	    movesfound += 1
-            val::Int = -AlphaBeta( gs, ply+1, depth-1.0, -beta, -alpha)
+            ext = 0.0
+	    if i > beg
+                val = -AlphaBeta( gs, ply+1, depth-1.0+ext, -alpha-1, -alpha)
+                if (val > alpha) && (val < beta)
+                    val = -AlphaBeta( gs, ply+1, depth-1.0+ext, -beta, -alpha)
+                end
+            else
+                val = -AlphaBeta( gs, ply+1, depth-1.0+ext, -beta, -alpha)
+            end
+
+            # original full depth search
+            # val::Int = -AlphaBeta( gs, ply+1, depth-1.0, -beta, -alpha)
+
             takeBack( gs.board, i, gs.moveBuf, teban)
             if gs.timedout
                 return 0
@@ -138,10 +209,18 @@ function AlphaBeta( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::
                 end
                 gs.triangularLength[ply+1] = gs.triangularLength[ply + 1+1]
                 rememberPV(gs)
+                tt_flag = TT_ALPHA
+                tt_val = alpha
+                tt_bestMove = gs.moveBuf[i]
+                tt_save( depth, tt_val, tt_flag, tt_bestMove, gs)
             end
             bestValue=max(val,bestValue)
             alpha = max( alpha, val)
             if alpha >= beta
+                tt_flag = TT_BETA
+                tt_val = beta
+                tt_bestMove = gs.moveBuf[i]
+                tt_save( depth, tt_val, tt_flag, gs.moveBuf[i], gs)
                 return beta
             end
         end
@@ -152,13 +231,15 @@ function AlphaBeta( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::
         else
             gs.whiteHeuristics[seeMoveFrom(gs.triangularArray[ply+1,ply+1])+1,seeMoveTo(gs.triangularArray[ply+1,ply+1])+1] += int(depth*depth)
         end
+        tt_flag = TT_EXACT
+        tt_save( depth, alpha, tt_flag, tt_bestMove, gs)
     end
     if movesfound == 0
         return -Infinity+ply-1
 	#if in_check(teban, gs.board)
         #end
     end
-    alpha
+    bestValue
 end
 
 # search driver

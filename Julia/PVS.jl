@@ -61,6 +61,7 @@ function qsearch( gs::GameStatus, ply::Int, alpha::Int, beta::Int)
     val2::Int = 0
     teban::Int = ((ply & 0x1) == 0)?gs.side:(gs.side$1)
     ev = (teban == SENTE)? 1: -1
+    bestValue = -Infinity
 
     if gs.timedout
         return 0
@@ -76,6 +77,7 @@ function qsearch( gs::GameStatus, ply::Int, alpha::Int, beta::Int)
     end
     if val > alpha
         alpha = val
+        bestValue = val
     end
     if (gs.inodes) & 1023 == 0
         now = time_ns()
@@ -103,13 +105,7 @@ function qsearch( gs::GameStatus, ply::Int, alpha::Int, beta::Int)
 	    gs.inodes += 1
 	    val = -qsearch( gs, ply+1, -beta, -alpha)
             takeBack( gs.board, i, gs.moveBuf, teban)
-
-            if val >= beta
-                return val
-            end
-
-            if val > alpha
-		alpha = val
+            if bestValue < val
                 # both sides want to maximize from *their* perspective
                 gs.pvmovesfound += 1
 
@@ -122,9 +118,14 @@ function qsearch( gs::GameStatus, ply::Int, alpha::Int, beta::Int)
                 gs.triangularLength[ply+1] = gs.triangularLength[ply + 1+1]
                 rememberPV(gs)
             end
+            bestValue=max(val,bestValue)
+            alpha = max( alpha, val)
+            if alpha >= beta
+                return beta
+            end
         end
     end
-    alpha
+    bestValue
 end
 
 #end # @iprofile
@@ -198,6 +199,7 @@ end
 function PVS( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::Int, isID::Bool)
     movesfound::Int = 0
     gs.pvmovesfound = 0
+    bestValue = -Infinity
     teban::Int = ((ply & 0x1) == 0)?gs.side:gs.side$1
     val::Int = 0
     tt_flag::Int = TT_ALPHA
@@ -284,11 +286,11 @@ function PVS( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::Int, i
 
     beg = gs.moveBufLen[ply+1]+1
     for i = beg:gs.moveBufLen[ply+2]
-        #if (i == beg)&&(best.move != 0)
-        # selectHash( gs, ply, i, depth, best)
-        #else
-        # selectmove( gs, ply, i, depth)
-        #end
+        if (i == beg)&&(best.move != 0)
+            selectHash( gs, ply, i, depth, best)
+        else
+            selectmove( gs, ply, i, depth)
+        end
         makeMove( gs.board, i, gs.moveBuf, teban)
         ext::Float64 = 0.0
         #if i == beg
@@ -301,7 +303,7 @@ function PVS( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::Int, i
 	    gs.inodes += 1
 	    movesfound += 1
 
-	    if gs.pvmovesfound > 0
+	    if i > beg
                 val = -PVS( gs, ply+1, depth-1.0+ext, -alpha-1, -alpha,isID)
                 if (val > alpha) && (val < beta)
                     val = -PVS( gs, ply+1, depth-1.0+ext, -beta, -alpha,isID)
@@ -313,8 +315,7 @@ function PVS( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::Int, i
             if gs.timedout
                 return 0
             end
-            if val > alpha
-                alpha = val
+            if bestValue < val
                 # both sides want to maximize from *their* perspective
                 gs.pvmovesfound += 1
                 gs.triangularArray[ply+1,ply+1] = gs.moveBuf[i]
@@ -330,7 +331,10 @@ function PVS( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::Int, i
                 tt_val = alpha
                 tt_bestMove = gs.moveBuf[i]
                 tt_save( depth, tt_val, tt_flag, tt_bestMove, gs)
-            if val >= beta
+            end
+            bestValue=max(val,bestValue)
+            alpha = max( alpha, val)
+            if alpha >= beta
                 if gs.board.nextMove == GOTE
                     gs.blackHeuristics[seeMoveFrom(gs.moveBuf[i])+1,seeMoveTo(gs.moveBuf[i])+1] += int(depth*depth)
                 else
@@ -341,10 +345,7 @@ function PVS( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::Int, i
                 tt_val = beta
                 tt_bestMove = gs.moveBuf[i]
                 tt_save( depth, tt_val, tt_flag, gs.moveBuf[i], gs)
-
-                return val
-            end
-
+                return beta
             end
         end
     end
@@ -364,8 +365,7 @@ function PVS( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::Int, i
             return -Infinity+ply-1
         end
     end
-
-    alpha
+    bestValue
 end
 
 #end # @iprofile

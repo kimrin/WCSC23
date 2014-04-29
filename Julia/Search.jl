@@ -13,7 +13,11 @@ function rememberPV(gs::GameStatus)
     end
 end
 
+using IProfile
+#@iprofile off
+
 # qui search
+#@iprofile begin
 function Qui( gs::GameStatus, ply::Int, alpha::Int, beta::Int)
     movesfound::Int = 0
     gs.pvmovesfound = 0
@@ -88,6 +92,7 @@ function Qui( gs::GameStatus, ply::Int, alpha::Int, beta::Int)
 end
 
 # alpha-beta search
+#@iprofile begin
 function AlphaBeta( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::Int)
     movesfound::Int = 0
     gs.pvmovesfound = 0
@@ -241,6 +246,7 @@ function AlphaBeta( gs::GameStatus, ply::Int, depth::Float64, alpha::Int, beta::
     end
     bestValue
 end
+#end
 
 # search driver
 function think( sengo::Int, gs::GameStatus)
@@ -365,6 +371,7 @@ function thinkASP( sengo::Int, gs::GameStatus)
             println()
         end
     end
+
     move = gs.lastPV[1]
     return move
 end

@@ -6,6 +6,20 @@ function showPcPcOnSqIndex(k::Int, i::Int, j::Int)
     println("["*"$k,$i,$j"*"] = "*"pc_on_sq[",(i-1)*(i)/2+(j-1)+1,",",k,"]")
 end
 
+function probeEHash(p::Board, gs::GameStatus, key::Uint64)
+    #key = hash(p.square) $ hash(p.WhitePiecesInHands) $ hash(p.BlackPiecesInHands) $ hash(p.nextMove)
+    contents = get( gs.ett, key, int64(0xdeadcafe))
+    if contents == int64(0xdeadcafe)
+        return false, 0
+    else
+        return true, contents
+    end
+end
+
+function storeEHash(p::Board, gs::GameStatus, key::Uint64, value::Int64)
+    gs.ett[key] = value
+end
+
 function make_list( list0::Array{Int,1}, list1::Array{Int,1}, p::Board, gs::GameStatus)
     list2::Array{Int,1} = [0 for x=1:35]::Array{Int,1}
     nlist::Int = 15
@@ -23,7 +37,7 @@ function make_list( list0::Array{Int,1}, list1::Array{Int,1}, p::Board, gs::Game
     # for i = 1:14
     #     println("list1[",i,"] = ", list1[i])
     # end
-    
+
     score += kkp[1+ kkp_hand_pawn  + p.WhitePiecesInHands[MJFU], sq_bk0,sq_wk0]
     # println("wFU:",score,"kpp[",1+ kkp_hand_pawn  + p.WhitePiecesInHands[MJFU],",",sq_bk0,",",sq_wk0,"]")
     score += kkp[1+ kkp_hand_lance + p.WhitePiecesInHands[MJKY], sq_bk0,sq_wk0]
@@ -345,9 +359,29 @@ function make_list( list0::Array{Int,1}, list1::Array{Int,1}, p::Board, gs::Game
 end
 
 function EvalBonanza(nextMove::Int, p::Board, gs::GameStatus)
-    list0::Array{Int,1} = [0 for x=1:53]::Array{Int,1}
-    list1::Array{Int,1} = [0 for x=1:53]::Array{Int,1}
+    # list0::Array{Int,1} = [0 for x=1:53]::Array{Int,1}
+    # list1::Array{Int,1} = [0 for x=1:53]::Array{Int,1}
+    list0 = zeros(Int, 54)::Array{Int,1}
+    list1 = zeros(Int, 54)::Array{Int,1}
 
+    # hash lookup!
+
+    key = hash(p.square) $ hash(p.WhitePiecesInHands) $ hash(p.BlackPiecesInHands) $ hash(p.nextMove)
+
+    inHash, evalue = probeEHash(p, gs, key)
+    if inHash == true
+        if nextMove == GOTE
+            evalue = -evalue
+        end
+
+        evalue = int64(evalue / 32)
+
+        noise = (rand(Int64) % 10) - 5
+        evalue += noise
+
+        return evalue
+    end
+    
     list0[ 1] = f_hand_pawn   + p.BlackPiecesInHands[MJFU] + 1
     list0[ 2] = e_hand_pawn   + p.WhitePiecesInHands[MJFU] + 1
     list0[ 3] = f_hand_lance  + p.BlackPiecesInHands[MJKY] + 1
@@ -435,6 +469,11 @@ function EvalBonanza(nextMove::Int, p::Board, gs::GameStatus)
 
     score += 32 * eva
 
+    # store eHash!
+    if inHash == false # always false
+        storeEHash(p, gs, key, int64(score))
+    end
+
     # println("Eval=", eva, ", Score=", score)
 
     if nextMove == GOTE
@@ -443,7 +482,7 @@ function EvalBonanza(nextMove::Int, p::Board, gs::GameStatus)
 
     score = int(score / 32)
 
-    noise = (rand(Uint32) % 10) - 5
+    noise = (rand(Int64) % 10) - 5
     score += noise
 
     #println("XXX")

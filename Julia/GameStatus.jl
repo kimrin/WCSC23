@@ -44,6 +44,7 @@ type GameStatus
     GoteOthers::BitBoard
     MoveBeginIndex::Int
     tt::Dict{Uint64,TransP}
+    ett::Dict{Uint64,Int64}
     GameStatus() = new()
 end
 
@@ -86,6 +87,10 @@ function InitGS()
 
     gs.MoveBeginIndex = 0
     gs.tt = Dict{Uint64,TransP}()
+    gs.ett = Dict{Uint64,Int64}()
+
+    sizehint(gs.tt,65536*16)
+    sizehint(gs.ett,65536*16)
 
     #println("$gs")
     gs

@@ -13,7 +13,7 @@ function rememberPV(gs::GameStatus)
     end
 end
 
-using IProfile
+#using IProfile
 #@iprofile off
 
 # qui search
